@@ -28,7 +28,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define MAX_ITER 1000
+#define MAX_ITER 100
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -62,6 +62,8 @@ const int image_sizes[] = {128, 160, 192, 224, 256};   // array of square image 
 
 uint64_t checksums_fixed[5] = {0};   // store fixed-point checksums
 uint64_t checksums_double[5] = {0};   // store double checksums
+uint64_t checksums_float[5] = {0};   // store float checksums
+uint32_t times_float[5] = {0};   // store float execution times 
 uint32_t times_fixed[5] = {0};   // store fixed-point execution times
 uint32_t times_double[5] = {0};   // store double execution times
 
@@ -79,6 +81,7 @@ static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
 uint64_t calculate_mandelbrot_fixed_point_arithmetic(int width, int height, int max_iterations);
 uint64_t calculate_mandelbrot_double(int width, int height, int max_iterations);
+uint64_t calculate_mandelbrot_float(int width, int height, int max_iterations);
 
 
 /* USER CODE END PFP */
@@ -120,7 +123,7 @@ int main(void)
 
   // Task 3
   // Iterate through all five square images (i.e. width = height) of dimensions (128, 160, 192, 224, 256) for testing
-  for (int i = 0; i < 5; i++) {
+  /*for (int i = 0; i < 5; i++) {
 
 	  // Fixed-point arithmetic:
 
@@ -156,9 +159,29 @@ int main(void)
 	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
 
 
+  }*/
+
+  for (int i = 0; i < 5; i++) {
+	  // Repeated Task 3 for float-precision arithmetic:
+
+	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+
+	  start_time = HAL_GetTick();
+	  checksum = calculate_mandelbrot_float(image_sizes[i], image_sizes[i], MAX_ITER);
+	  end_time = HAL_GetTick();
+	  execution_time = end_time - start_time;
+
+	  // Store checksums and execution times for float-precision arithmetic
+	  checksums_float[i] = checksum;
+	  times_float[i] = execution_time;
+
+	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
+	  HAL_Delay(1000);
+	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
+
+
   }
-
-
 
   for (int i = 0; i < 5; i++) {
 	  // Repeated Task 3 for double-precision arithmetic:
@@ -351,6 +374,30 @@ uint64_t calculate_mandelbrot_double(int width, int height, int max_iterations) 
         }
     }
 
+    return mandelbrot_sum;
+}
+
+uint64_t calculate_mandelbrot_float(int width, int height, int max_iterations) {
+    uint64_t mandelbrot_sum = 0;
+    const float x_scale = 3.5f / (float)width;
+    const float y_scale = 2.0f / (float)height;
+
+    for (int y = 0; y < height; y++) {
+        float y0 = (float)y * y_scale - 1.0f;
+        for (int x = 0; x < width; x++) {
+            float x0 = (float)x * x_scale - 2.5f;
+            float xi = 0.0f;
+            float yi = 0.0f;
+            int iteration = 0;
+            while (iteration < max_iterations && (xi * xi + yi * yi) <= 4.0f) {
+                float temp = xi * xi - yi * yi + x0;
+                yi = 2.0f * xi * yi + y0;
+                xi = temp;
+                iteration++;
+            }
+            mandelbrot_sum += iteration;
+        }
+    }
     return mandelbrot_sum;
 }
 
