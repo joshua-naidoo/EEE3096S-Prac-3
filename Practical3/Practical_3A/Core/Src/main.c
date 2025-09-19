@@ -60,6 +60,10 @@ uint32_t end_time = 0;   // end time in ms (HAL_GetTick)
 uint32_t execution_time = 0;   // execution time (end_time - start_time)
 const int image_sizes[] = {128, 160, 192, 224, 256};   // array of square image dimensions
 
+uint32_t first_time = 0;   // first time in ms (HAL_GetTick)
+uint32_t last_time = 0;   // last time in ms (HAL_GetTick)
+uint32_t runtime = 0;   // runtime (first_time - last_time)
+
 uint64_t checksums_fixed[5] = {0};   // store fixed-point checksums
 uint64_t checksums_double[5] = {0};   // store double checksums
 uint64_t checksums_float[5] = {0};   // store float checksums
@@ -123,7 +127,7 @@ int main(void)
 
   // Task 3
   // Iterate through all five square images (i.e. width = height) of dimensions (128, 160, 192, 224, 256) for testing
-  /*for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 5; i++) {
 
 	  // Fixed-point arithmetic:
 
@@ -159,9 +163,9 @@ int main(void)
 	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
 
 
-  }*/
+  }
 
-  for (int i = 0; i < 5; i++) {
+  /*for (int i = 0; i < 5; i++) {
 	  // Repeated Task 3 for float-precision arithmetic:
 
 	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
@@ -181,9 +185,9 @@ int main(void)
 	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
 
 
-  }
+  }*/
 
-  for (int i = 0; i < 5; i++) {
+  /*for (int i = 0; i < 5; i++) {
 	  // Repeated Task 3 for double-precision arithmetic:
 
 	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
@@ -203,8 +207,8 @@ int main(void)
 	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
 
 
-  }
-
+  }*/
+  runtime = HAL_GetTick();
 
 
   /* USER CODE END 2 */
