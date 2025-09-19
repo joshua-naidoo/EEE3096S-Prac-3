@@ -67,10 +67,13 @@ uint32_t runtime = 0;   // runtime (first_time - last_time)
 uint64_t checksums_fixed[5] = {0};   // store fixed-point checksums
 uint64_t checksums_double[5] = {0};   // store double checksums
 uint64_t checksums_float[5] = {0};   // store float checksums
-uint32_t times_float[5] = {0};   // store float execution times 
+uint32_t times_float[5] = {0};   // store float execution times
 uint32_t times_fixed[5] = {0};   // store fixed-point execution times
 uint32_t times_double[5] = {0};   // store double execution times
 
+const int64_t scales[] = {1000, 10000, 1000000}; // Test 10^3, 10^4, 10^6
+uint64_t checksums_scale_fixed[3][5] = {0}; // checksums[scale_index][size_index]
+uint32_t times_scale_fixed[3][5] = {0}; // times[scale_index][size_index]
 
 /* USER CODE END PV */
 
@@ -83,7 +86,7 @@ uint32_t times_double[5] = {0};   // store double execution times
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
-uint64_t calculate_mandelbrot_fixed_point_arithmetic(int width, int height, int max_iterations);
+uint64_t calculate_mandelbrot_fixed_point_arithmetic(int width, int height, int max_iterations, int64_t scale);
 uint64_t calculate_mandelbrot_double(int width, int height, int max_iterations);
 uint64_t calculate_mandelbrot_float(int width, int height, int max_iterations);
 
@@ -127,7 +130,7 @@ int main(void)
 
   // Task 3
   // Iterate through all five square images (i.e. width = height) of dimensions (128, 160, 192, 224, 256) for testing
-  for (int i = 0; i < 5; i++) {
+  /*for (int i = 0; i < 5; i++) {
 
 	  // Fixed-point arithmetic:
 
@@ -138,7 +141,7 @@ int main(void)
 	  start_time = HAL_GetTick();
 
 	  //TODO: Call the Mandelbrot Function and store the output in the checksum variable defined initially
-	  checksum = calculate_mandelbrot_fixed_point_arithmetic(128, 128, MAX_ITER);
+	  checksum = calculate_mandelbrot_fixed_point_arithmetic(image_sizes[i], image_sizes[i], MAX_ITER);
 
 	  //TODO: Record the end time
 	  end_time = HAL_GetTick();
@@ -163,6 +166,23 @@ int main(void)
 	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
 
 
+  }*/
+
+  for (int s = 0; s < 3; s++) { // For each scale
+      int64_t current_scale = scales[s];
+      for (int i = 0; i < 5; i++) {
+          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+          start_time = HAL_GetTick();
+          checksum = calculate_mandelbrot_fixed_point_arithmetic(image_sizes[i], image_sizes[i], MAX_ITER, current_scale);
+          end_time = HAL_GetTick();
+          execution_time = end_time - start_time;
+          checksums_scale_fixed[s][i] = checksum;
+          times_scale_fixed[s][i] = execution_time;
+          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
+          HAL_Delay(1000);
+          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
+      }
   }
 
   /*for (int i = 0; i < 5; i++) {
@@ -293,49 +313,38 @@ static void MX_GPIO_Init(void)
 
 // Task 2
 // Fixed-point Mandelbrot function
-uint64_t calculate_mandelbrot_fixed_point_arithmetic(int width, int height, int max_iterations) {
+uint64_t calculate_mandelbrot_fixed_point_arithmetic(int width, int height, int max_iterations, int64_t scale) {
     uint64_t mandelbrot_sum = 0;
+    int64_t four_scaled = 4LL * scale; // Scaled escape radius (4 * scale)
 
-    // Larger scale factor for higher precision (16.16 fixed-point)
-    const int32_t SCALE = 1 << 16;
-    const int64_t FOUR_SCALED = 4LL * SCALE;
-
-    // Map pixel coordinates to [-2.5, 1] x [-1, 1]
-    const int32_t x_scale = (int32_t)((3.5 * SCALE) / width);
-    const int32_t y_scale = (int32_t)((2.0 * SCALE) / height);
-    const int32_t x_offset = (int32_t)(-2.5 * SCALE);
-    const int32_t y_offset = (int32_t)(-1.0 * SCALE);
+    // Pre-calculate scaled mapping constants
+    int64_t x_scale_val = (int64_t)((3.5 * scale) / width);
+    int64_t y_scale_val = (int64_t)((2.0 * scale) / height);
+    int64_t x_offset = (int64_t)(-2.5 * scale);
+    int64_t y_offset = (int64_t)(-1.0 * scale);
 
     for (int y = 0; y < height; y++) {
-        int32_t y0 = y * y_scale + y_offset;
-
+        int64_t y0 = (int64_t)y * y_scale_val + y_offset;
         for (int x = 0; x < width; x++) {
-            int32_t x0 = x * x_scale + x_offset;
-
-            int32_t xi = 0;
-            int32_t yi = 0;
+            int64_t x0 = (int64_t)x * x_scale_val + x_offset;
+            int64_t xi = 0;
+            int64_t yi = 0;
             int iteration = 0;
 
             while (iteration < max_iterations) {
-                // Promote to 64-bit before multiply
-                int64_t xi_sq = ((int64_t)xi * xi) / SCALE;
-                int64_t yi_sq = ((int64_t)yi * yi) / SCALE;
-
-                // Escape condition
-                if (xi_sq + yi_sq > FOUR_SCALED)
-                    break;
-
+                int64_t xi_sq = (xi * xi) / scale;
+                int64_t yi_sq = (yi * yi) / scale;
+                if (xi_sq + yi_sq > four_scaled) {
+                    break; // Escape condition
+                }
                 int64_t temp = xi_sq - yi_sq + x0;
-                yi = (int32_t)(((int64_t)2 * xi * yi) / SCALE + y0);
-                xi = (int32_t)(temp);
-
+                yi = (2 * xi * yi) / scale + y0;
+                xi = temp;
                 iteration++;
             }
-
             mandelbrot_sum += iteration;
         }
     }
-
     return mandelbrot_sum;
 }
 
